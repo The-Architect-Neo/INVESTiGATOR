@@ -16,6 +16,30 @@ from companies_house import (
 
 app = Flask(__name__, static_folder=".")
 
+# ── KNOWN FORMATION AGENT / VIRTUAL OFFICE ADDRESSES ────────────
+# Registered addresses associated with company formation agents and
+# virtual office providers. A match is a soft red flag, not proof of wrongdoing.
+KNOWN_FORMATION_ADDRESSES = [
+    "blythswood square",
+    "james watt street",
+    "27 old gloucester street",
+    "124 city road",
+    "20-22 wenlock road",
+    "71-75 shelton street",
+    "kemp house",
+    "84 eccleston square",
+    "1 northumberland avenue",
+    "86 james watt",
+    "second home",
+    "x-formation",
+]
+
+
+def check_formation_agent_address(address):
+    addr_lower = address.lower() if address else ""
+    return any(known in addr_lower for known in KNOWN_FORMATION_ADDRESSES)
+
+
 # ── HELPERS ─────────────────────────────────────────────────────
 
 def deduplicate_appointments(appointments):
@@ -39,7 +63,7 @@ def deduplicate_appointments(appointments):
     return list(seen.values())
 
 
-def red_flags(appointments):
+def red_flags(appointments, address=""):
     # Deduplicate before analysis so duplicate CH records don't trigger false flags
     appointments = deduplicate_appointments(appointments)
 
@@ -49,13 +73,65 @@ def red_flags(appointments):
     resigned = [a for a in appointments if a.get("resigned_on")]
     active = [a for a in appointments if not a.get("resigned_on")]
 
+    # Overall dissolved associations
     if len(dissolved) >= 2:
         flags.append(f"{len(dissolved)} dissolved company associations")
+
+    # Director at dissolution — still listed as director when the company folded
+    at_dissolution = [a for a in dissolved if not a.get("resigned_on")]
+    if at_dissolution:
+        names = ", ".join(a.get("appointed_to", {}).get("company_name", "Unknown") for a in at_dissolution)
+        if len(at_dissolution) == 1:
+            flags.append(f"Director at dissolution — never formally resigned from {names}")
+        else:
+            flags.append(f"Director at dissolution on {len(at_dissolution)} companies — never formally resigned ({names})")
+
     if len(resigned) >= 3:
         flags.append(f"Resigned from {len(resigned)} companies")
-    if len(active) >= 3:
-        flags.append(f"Currently active in {len(active)} companies simultaneously")
 
+    # Active companies — named inline so you don't have to scroll to the table
+    if len(active) >= 3:
+        active_names = ", ".join(a.get("appointed_to", {}).get("company_name", "Unknown") for a in active)
+        flags.append(f"Currently active in {len(active)} companies simultaneously — {active_names}")
+
+    # Phoenix window — new appointment within 12 months of leaving a dissolved company
+    dissolved_with_resignation = [a for a in dissolved if a.get("resigned_on")]
+    appt_index = []
+    for a in appointments:
+        d = a.get("appointed_on", "")
+        co_num = a.get("appointed_to", {}).get("company_number", "")
+        co_name = a.get("appointed_to", {}).get("company_name", "")
+        if d:
+            try:
+                appt_index.append((datetime.strptime(d, "%Y-%m-%d"), co_num, co_name))
+            except:
+                pass
+
+    phoenix_flagged = False
+    for a in dissolved_with_resignation:
+        if phoenix_flagged:
+            break
+        resigned_str = a.get("resigned_on", "")
+        dissolved_co_num = a.get("appointed_to", {}).get("company_number", "")
+        dissolved_co_name = a.get("appointed_to", {}).get("company_name", "Unknown")
+        try:
+            resigned_date = datetime.strptime(resigned_str, "%Y-%m-%d")
+        except:
+            continue
+        for appt_date, co_num, co_name in appt_index:
+            if co_num == dissolved_co_num:
+                continue
+            delta = (appt_date - resigned_date).days
+            if 0 < delta <= 365:
+                flags.append(f"Possible phoenix — joined {co_name} within {delta} days of leaving dissolved {dissolved_co_name}")
+                phoenix_flagged = True
+                break
+
+    # Formation agent / virtual office address
+    if address and check_formation_agent_address(address):
+        flags.append("Registered at known virtual office / formation agent address")
+
+    # Rapid incorporation — two appointments within 180 days of each other
     dates = []
     for a in appointments:
         d = a.get("appointed_on", "")
@@ -100,8 +176,14 @@ def build_officer_data(officer):
         appt_data = get_appointments(o_id)
         appointments = appt_data.get("items", [])
 
+    o_address = officer.get("address", {})
+    o_addr_str = ", ".join(filter(None, [
+        o_address.get("premises"), o_address.get("address_line_1"),
+        o_address.get("locality"), o_address.get("postal_code")
+    ]))
+
     appointments = deduplicate_appointments(appointments)
-    flags = red_flags(appointments)
+    flags = red_flags(appointments, address=o_addr_str)
 
     # Disqualification check
     disqualified, disq_data = check_disqualification(o_name)
@@ -252,7 +334,7 @@ def api_person():
             appt_data = get_appointments(o_id)
             appointments = appt_data.get("items", [])
 
-        flags = red_flags(appointments)
+        flags = red_flags(appointments, address=addr_str)
         appt_list = []
         for a in appointments:
             co = a.get("appointed_to", {})
