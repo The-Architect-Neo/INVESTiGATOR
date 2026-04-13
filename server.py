@@ -277,7 +277,8 @@ def api_person():
 
 if __name__ == "__main__":
     if not os.environ.get("CH_API_KEY"):
-        print("\nERROR: CH_API_KEY not set. Run: set CH_API_KEY=your-key")
+        print("\nERROR: CH_API_KEY not set.")
     else:
-        print("\nInvestigator running at http://localhost:5000")
-        app.run(debug=False, port=5000)
+        port = int(os.environ.get("PORT", 5000))
+        print(f"\nInvestigator running on port {port}")
+        app.run(debug=False, host="0.0.0.0", port=port)
