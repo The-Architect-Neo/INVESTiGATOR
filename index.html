@@ -64,6 +64,30 @@
   .person-body { padding: 20px; }
 
   strong[style*="color:#bbb"] { color: #bbb !important; }
+
+  @media (max-width: 600px) {
+    header { padding: 15px 20px; }
+    header h1 { font-size: 1.1em; }
+
+    .search-bar { padding: 20px; }
+    .results { padding: 20px; }
+
+    .input-row { flex-direction: column; }
+    .input-row input { width: 100%; }
+    .input-row button { width: 100%; }
+
+    .meta-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 500px; }
+
+    .officer-section { padding-top: 15px; }
+    .person-body { padding: 15px; }
+    .person-header { padding: 12px 15px; }
+    .card-body { padding: 15px; }
+  }
 </style>
 </head>
 <body>
@@ -187,10 +211,10 @@
           <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Red Flags</strong>
           <div style="margin:8px 0">${flagsHtml}</div>
           <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Appointment History (${o.appointments.length})</strong>
-          <table>
+          <div class="table-wrap"><table>
             <tr><th>Company</th><th>Number</th><th>Status</th><th>Appointed</th><th>Resigned</th></tr>
             ${rows}
-          </table>
+          </table></div>
         </div>`;
     });
 
@@ -227,10 +251,10 @@
             <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Red Flags</strong>
             <div style="margin:8px 0">${flagsHtml}</div>
             <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Appointment History (${p.appointments.length})</strong>
-            <table>
+            <div class="table-wrap"><table>
               <tr><th>Company</th><th>Number</th><th>Status</th><th>Appointed</th><th>Resigned</th></tr>
               ${rows}
-            </table>
+            </table></div>
           </div>
         </div>`;
     });
