@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INVEST👁GATOR</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; }
+
+  header { background: #111; border-bottom: 1px solid #222; padding: 20px 40px; display: flex; align-items: center; gap: 15px; }
+  header h1 { font-size: 1.3em; color: #fff; letter-spacing: 2px; text-transform: uppercase; }
+  header span { color: #aaa; font-size: 0.8em; }
+
+  .search-bar { background: #111; padding: 40px; border-bottom: 1px solid #2a2a2a; }
+  .search-bar h2 { color: #fff; margin-bottom: 20px; font-size: 1em; font-weight: normal; letter-spacing: 1px; text-transform: uppercase; }
+  .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+  .tab { padding: 8px 20px; background: #1a1a1a; border: 1px solid #444; color: #bbb; cursor: pointer; font-size: 0.85em; letter-spacing: 1px; text-transform: uppercase; }
+  .tab.active { background: #c00; border-color: #c00; color: #fff; }
+  .input-row { display: flex; gap: 10px; }
+  .input-row input { flex: 1; padding: 12px 16px; background: #1a1a1a; border: 1px solid #444; color: #fff; font-size: 1em; outline: none; }
+  .input-row input:focus { border-color: #c00; }
+  .input-row button { padding: 12px 30px; background: #c00; border: none; color: #fff; font-size: 0.9em; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
+  .input-row button:hover { background: #a00; }
+  .input-row button.clear { background: #1a1a1a; border: 1px solid #444; color: #bbb; }
+  .input-row button.clear:hover { background: #222; color: #fff; }
+
+  .results { padding: 40px; }
+
+  .card { background: #111; border: 1px solid #2a2a2a; margin-bottom: 20px; }
+  .card-header { background: #1a1a1a; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .card-header h3 { color: #fff; font-size: 1em; }
+  .badge { padding: 3px 10px; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+  .badge.active { background: #1a3a1a; color: #6d6; border: 1px solid #2a5a2a; }
+  .badge.dissolved { background: #3a0a0a; color: #e55; border: 1px solid #5a1a1a; }
+  .badge.unknown { background: #222; color: #aaa; border: 1px solid #444; }
+  .card-body { padding: 20px; }
+
+  .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+  .meta-item label { display: block; font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .meta-item span { color: #fff; font-size: 0.9em; }
+
+  .flag { background: #1a0a00; border-left: 3px solid #f80; padding: 8px 12px; margin: 6px 0; font-size: 0.85em; color: #f80; }
+  .flag-none { color: #6d6; font-size: 0.85em; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85em; }
+  th { background: #1a1a1a; color: #ccc; padding: 8px 10px; text-align: left; font-weight: normal; text-transform: uppercase; letter-spacing: 1px; font-size: 0.75em; border-bottom: 1px solid #333; }
+  td { padding: 8px 10px; border-bottom: 1px solid #1e1e1e; color: #e0e0e0; }
+  tr:hover td { background: #161616; }
+  td a { color: #ccc; text-decoration: none; }
+  td a:hover { color: #c00; }
+  .status-active { color: #6d6; font-weight: bold; }
+  .status-dissolved { color: #e55; font-weight: bold; }
+
+  .officer-section { margin-top: 25px; border-top: 1px solid #2a2a2a; padding-top: 20px; }
+  .officer-section h4 { color: #fff; font-size: 0.9em; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .loading { color: #aaa; font-size: 0.9em; padding: 40px 0; }
+  .error-msg { color: #e55; padding: 15px; background: #1a0a0a; border: 1px solid #5a1a1a; margin-bottom: 20px; }
+
+  .person-result { margin-bottom: 30px; border: 1px solid #2a2a2a; }
+  .person-header { background: #1a1a1a; padding: 15px 20px; }
+  .person-header h3 { color: #fff; }
+  .person-body { padding: 20px; }
+
+  strong[style*="color:#bbb"] { color: #bbb !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>INVEST👁GATOR</h1>
+  <span>Corporate Intelligence</span>
+</header>
+
+<div class="search-bar">
+  <h2>Search</h2>
+  <div class="tabs">
+    <div class="tab active" onclick="setMode('company')">Company</div>
+    <div class="tab" onclick="setMode('person')">Person</div>
+  </div>
+  <div class="input-row">
+    <input type="text" id="query" placeholder="Company name or number..." onkeydown="if(event.key==='Enter') search()">
+    <button onclick="search()">Investigate</button>
+    <button class="clear" onclick="clearResults()">Clear</button>
+  </div>
+</div>
+
+<div class="results" id="results"></div>
+
+<script>
+  let mode = 'company';
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('query').placeholder = m === 'company'
+      ? 'Company name or number...'
+      : 'Full name (e.g. Matthew John Durham)...';
+  }
+
+  function clearResults() {
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('query').value = '';
+  }
+
+  function search() {
+    const q = document.getElementById('query').value.trim();
+    if (!q) return;
+    const results = document.getElementById('results');
+    results.innerHTML = '<p class="loading">Searching...</p>';
+
+    fetch(`/api/${mode}?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          results.innerHTML = `<div class="error-msg">${data.error}</div>`;
+          return;
+        }
+        if (mode === 'company') renderCompany(data);
+        else renderPerson(data);
+      })
+      .catch(e => {
+        results.innerHTML = `<div class="error-msg">Request failed. Is the server running?</div>`;
+      });
+  }
+
+  function statusBadge(s) {
+    const cls = s === 'active' ? 'active' : s === 'dissolved' ? 'dissolved' : 'unknown';
+    return `<span class="badge ${cls}">${s}</span>`;
+  }
+
+  function renderCompany(data) {
+    const c = data.company;
+    const officers = data.officers;
+
+    const coFlagsHtml = c.flags && c.flags.length
+      ? c.flags.map(f => `<div class="flag">⚠ ${f}</div>`).join('')
+      : '';
+
+    const prevNamesHtml = c.previous_names && c.previous_names.length
+      ? `<div class="meta-item"><label>Previous Names</label><span>${c.previous_names.map(n => `${n.name} (until ${n.ceased})`).join(', ')}</span></div>`
+      : '';
+
+    let html = `
+      <div class="card">
+        <div class="card-header">
+          <h3>${c.name}</h3>
+          ${statusBadge(c.status)}
+        </div>
+        <div class="card-body">
+          <div class="meta-grid">
+            <div class="meta-item"><label>Company Number</label><span>${c.number}</span></div>
+            <div class="meta-item"><label>Incorporated</label><span>${c.created}</span></div>
+            <div class="meta-item"><label>Address</label><span>${c.address || 'Not shown'}</span></div>
+            <div class="meta-item"><label>SIC Codes</label><span>${c.sic.join(', ') || 'Not shown'}</span></div>
+            ${prevNamesHtml}
+          </div>
+          ${coFlagsHtml}`;
+
+    officers.forEach(o => {
+      const flagsHtml = o.flags.length
+        ? o.flags.map(f => `<div class="flag">⚠ ${f}</div>`).join('')
+        : '<p class="flag-none">No red flags detected</p>';
+
+      const rows = o.appointments.map(a => {
+        const sc = a.company_status === 'active' ? 'status-active' : 'status-dissolved';
+        const ch_url = `https://find-and-update.company-information.service.gov.uk/company/${a.company_number}`;
+        return `<tr>
+          <td><a href="${ch_url}" target="_blank">${a.company_name}</a></td>
+          <td>${a.company_number}</td>
+          <td class="${sc}">${a.company_status.toUpperCase()}</td>
+          <td>${a.appointed_on}</td>
+          <td>${a.resigned_on || 'Current'}</td>
+        </tr>`;
+      }).join('');
+
+      html += `
+        <div class="officer-section">
+          <h4>${o.name} — ${o.role}</h4>
+          <div class="meta-grid">
+            <div class="meta-item"><label>Appointed</label><span>${o.appointed}</span></div>
+            <div class="meta-item"><label>DOB</label><span>${o.dob}</span></div>
+            ${o.resigned ? `<div class="meta-item"><label>Resigned</label><span>${o.resigned}</span></div>` : ''}
+          </div>
+          <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Red Flags</strong>
+          <div style="margin:8px 0">${flagsHtml}</div>
+          <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Appointment History (${o.appointments.length})</strong>
+          <table>
+            <tr><th>Company</th><th>Number</th><th>Status</th><th>Appointed</th><th>Resigned</th></tr>
+            ${rows}
+          </table>
+        </div>`;
+    });
+
+    html += '</div></div>';
+    document.getElementById('results').innerHTML = html;
+  }
+
+  function renderPerson(data) {
+    let html = '';
+    data.results.forEach(p => {
+      const flagsHtml = p.flags.length
+        ? p.flags.map(f => `<div class="flag">⚠ ${f}</div>`).join('')
+        : '<p class="flag-none">No red flags detected</p>';
+
+      const rows = p.appointments.map(a => {
+        const sc = a.company_status === 'active' ? 'status-active' : 'status-dissolved';
+        const ch_url = `https://find-and-update.company-information.service.gov.uk/company/${a.company_number}`;
+        return `<tr>
+          <td><a href="${ch_url}" target="_blank">${a.company_name}</a></td>
+          <td>${a.company_number}</td>
+          <td class="${sc}">${a.company_status.toUpperCase()}</td>
+          <td>${a.appointed_on}</td>
+          <td>${a.resigned_on || 'Current'}</td>
+        </tr>`;
+      }).join('');
+
+      html += `
+        <div class="person-result">
+          <div class="person-header">
+            <h3>${p.name}</h3>
+            <span style="color:#bbb;font-size:.85em">DOB: ${p.dob} &nbsp;|&nbsp; ${p.address}</span>
+          </div>
+          <div class="person-body">
+            <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Red Flags</strong>
+            <div style="margin:8px 0">${flagsHtml}</div>
+            <strong style="color:#bbb;font-size:.8em;text-transform:uppercase;letter-spacing:1px">Appointment History (${p.appointments.length})</strong>
+            <table>
+              <tr><th>Company</th><th>Number</th><th>Status</th><th>Appointed</th><th>Resigned</th></tr>
+              ${rows}
+            </table>
+          </div>
+        </div>`;
+    });
+    document.getElementById('results').innerHTML = html;
+  }
+</script>
+</body>
+</html>
