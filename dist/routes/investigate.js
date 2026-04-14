@@ -238,7 +238,12 @@ async function lookupFCA(query) {
             return { source: 'fca_register', status: 'not_found', note: 'No FCA-regulated firm found for this query' };
         }
         if (!res.ok) {
-            return { source: 'fca_register', status: 'error', httpStatus: res.status };
+            return {
+                source: 'fca_register',
+                status: 'check_manually',
+                note: 'FCA Register is not accessible from this server. Verify the firm directly using the link below.',
+                manual_check: `https://register.fca.org.uk/s/?q=${encodeURIComponent(query)}`,
+            };
         }
         const json = await res.json();
         const items = json.Data ?? [];
@@ -286,9 +291,9 @@ async function lookupFCAWarning(query) {
         if (!res.ok) {
             return {
                 source: 'fca_warning_list',
-                status: 'error',
-                httpStatus: res.status,
-                manual_check: 'https://www.fca.org.uk/consumers/scamsmart',
+                status: 'check_manually',
+                note: 'FCA Warning List is not accessible from this server. Check for scam alerts directly using the link below.',
+                manual_check: `https://www.fca.org.uk/consumers/scamsmart/warning-list-search?q=${encodeURIComponent(query)}`,
             };
         }
         const json = await res.json();
