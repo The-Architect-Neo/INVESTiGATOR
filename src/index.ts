@@ -11,7 +11,6 @@
  * See .env.example for the full list.
  */
 
-import 'dotenv/config'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import investigateRouter from './routes/investigate'
