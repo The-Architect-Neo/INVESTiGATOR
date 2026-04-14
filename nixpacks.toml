@@ -1,6 +1,6 @@
 providers = ["node"]
 
-[phases.build]
+[phases.install]
 cmds = ["npm install --omit=dev"]
 
 [start]
