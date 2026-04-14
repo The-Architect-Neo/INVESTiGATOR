@@ -129,7 +129,7 @@
     Enter one value or multiple comma-separated — type is auto-detected. Use tabs to force a specific type.
   </div>
   <div class="input-row" style="margin-bottom:12px">
-    <input type="text" id="query" placeholder="e.g.  Wirecard,  wirecard.com,  185.220.101.1,  SW1A 1AA" onkeydown="if(event.key==='Enter')search()">
+    <input type="text" id="query" placeholder="e.g.  Wirecard,  John Smith,  wirecard.com,  185.220.101.1,  SW1A 1AA" onkeydown="if(event.key==='Enter')search()">
     <button onclick="search()">Investigate</button>
     <button class="secondary" onclick="clearResults()">Clear</button>
   </div>
@@ -137,6 +137,7 @@
     <span style="font-size:.72em;color:#444;letter-spacing:1px;text-transform:uppercase">Force type:</span>
     <div class="tabs" style="margin-bottom:0">
       <div class="tab" onclick="setMode('company',this)">Company</div>
+      <div class="tab" onclick="setMode('person',this)">Person</div>
       <div class="tab" onclick="setMode('domain',this)">Domain</div>
       <div class="tab" onclick="setMode('ip',this)">IP</div>
       <div class="tab" onclick="setMode('phone',this)">Phone</div>
@@ -167,6 +168,8 @@ function detectType(val) {
   if (/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i.test(v))          return 'postcode';
   if (/^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/i.test(v) && !v.includes(' ')) return 'domain';
   if (/^\d{7,8}$/.test(v) || /^[A-Z]{2}\d{6}$/i.test(v))       return 'company';
+  // Two or more purely alphabetic words (with optional hyphens/apostrophes) — treat as person name
+  if (/^[a-zA-Z'\-]{2,}(\s+[a-zA-Z'\-]{2,})+$/.test(v))       return 'person';
   return 'company';
 }
 
@@ -531,6 +534,42 @@ function renderSourceBody(src, query) {
       <div class="meta-item"><label>Carrier Note</label><span>${src.carrier_note}</span></div>
     </div>
     ${src.bt_directory ? `<p style="font-size:.8em;color:#555;margin-top:8px">${src.bt_directory}</p>` : ''}`;
+  }
+
+  // ── CH Person Search
+  if (src.source === 'ch_person_search') {
+    if (!src.profiles || src.profiles.length === 0) {
+      return `<p style="color:#555;font-size:.85em">${src.note || 'No matching officers found in Companies House.'}</p>`;
+    }
+    return src.profiles.map(p => {
+      const rows = p.appointments.map(a => {
+        const sc = a.company_status === 'active' ? 'status-active'
+                 : a.company_status === 'liquidation' ? 'status-liquidation'
+                 : 'status-dissolved';
+        const url = `https://find-and-update.company-information.service.gov.uk/company/${a.company_number}`;
+        return `<tr>
+          <td><a href="${url}" target="_blank" style="color:#c00">${a.company_name}</a></td>
+          <td>${a.company_number}</td>
+          <td class="${sc}">${(a.company_status||'').toUpperCase()}</td>
+          <td>${a.role}</td>
+          <td>${a.appointed_on||'—'}</td>
+          <td>${a.resigned_on || '<span style="color:#4d4">Current</span>'}</td>
+        </tr>`;
+      }).join('');
+      return `<div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #1e1e1e">
+        <div class="meta-grid" style="margin-bottom:12px">
+          <div class="meta-item"><label>Name</label><span>${p.name}</span></div>
+          ${p.dob ? `<div class="meta-item"><label>Date of Birth</label><span>${p.dob}</span></div>` : ''}
+          <div class="meta-item"><label>Total Appointments</label><span>${p.total_appointments}</span></div>
+        </div>
+        ${p.flags.map(f => `<div style="background:#1a0a00;border-left:3px solid #f80;padding:7px 12px;margin-bottom:8px;font-size:.82em;color:#f80">⚠ ${f}</div>`).join('')}
+        <p style="color:#555;font-size:.8em;margin-bottom:10px">All Companies House appointments — click company name to investigate</p>
+        <div class="table-wrap"><table>
+          <tr><th>Company</th><th>Number</th><th>Status</th><th>Role</th><th>Appointed</th><th>Resigned</th></tr>
+          ${rows || '<tr><td colspan="6" style="color:#555">No appointments found</td></tr>'}
+        </table></div>
+      </div>`;
+    }).join('');
   }
 
   // ── Generic fallback

@@ -120,7 +120,7 @@ const investigateLimiter = (0, express_rate_limit_1.default)({
 // ──────────────────────────────────────────────────────────────────
 // Input validation
 // ──────────────────────────────────────────────────────────────────
-const QUERY_TYPES = ['company', 'fca', 'domain', 'ip', 'postcode', 'phone', 'email'];
+const QUERY_TYPES = ['company', 'person', 'fca', 'domain', 'ip', 'postcode', 'phone', 'email'];
 const InvestigateSchema = zod_1.z.object({
     type: zod_1.z.enum(QUERY_TYPES),
     query: zod_1.z.string().min(1).max(200).trim(),
@@ -222,6 +222,97 @@ async function lookupCompanyOfficers(companyNumber) {
     }
     catch {
         return null;
+    }
+}
+// ──────────────────────────────────────────────────────────────────
+// Companies House — person / officer search by name
+// Searches the CH officer index, fetches appointments for each match,
+// and surfaces red flags: dissolved associations, phoenix patterns,
+// multiple simultaneous directorships, director at dissolution.
+// ──────────────────────────────────────────────────────────────────
+async function lookupPersonByName(query) {
+    const key = process.env.COMPANIES_HOUSE_API_KEY;
+    if (!key) {
+        return {
+            source: 'ch_person_search',
+            status: 'not_configured',
+            note: 'Set COMPANIES_HOUSE_API_KEY — free at developer.company-information.service.gov.uk',
+        };
+    }
+    try {
+        const auth = Buffer.from(key + ':').toString('base64');
+        const url = `https://api.company-information.service.gov.uk/search/officers?q=${encodeURIComponent(query)}&items_per_page=10`;
+        const res = await fetchWithTimeout(url, { headers: { Authorization: `Basic ${auth}` } });
+        if (!res.ok) {
+            return { source: 'ch_person_search', status: 'error', httpStatus: res.status };
+        }
+        const json = await res.json();
+        const items = json.items ?? [];
+        // Filter to results where every query word appears in the name
+        const queryWords = query.toUpperCase().split(/\s+/).filter(Boolean);
+        const matched = items.filter(o => {
+            const name = (o.title || '').toUpperCase();
+            return queryWords.every(w => name.includes(w));
+        });
+        const profiles = await Promise.all(matched.slice(0, 3).map(async (officer) => {
+            const officerId = (officer.links?.self || '').split('/officers/')[1]?.split('/')[0];
+            let appointments = [];
+            if (officerId) {
+                try {
+                    const ar = await fetchWithTimeout(`https://api.company-information.service.gov.uk/officers/${officerId}/appointments?items_per_page=50`, { headers: { Authorization: `Basic ${auth}` } });
+                    if (ar.ok) {
+                        const aj = await ar.json();
+                        appointments = aj.items ?? [];
+                    }
+                }
+                catch { /* ignore single appointment fetch failure */ }
+            }
+            // Red flags — ported from the original fraud detection logic
+            const flags = [];
+            const dissolved = appointments.filter(a => ['dissolved', 'liquidation', 'administration', 'receivership'].includes(a.appointed_to?.company_status));
+            const active = appointments.filter(a => !a.resigned_on);
+            const resigned = appointments.filter(a => a.resigned_on);
+            if (dissolved.length >= 2)
+                flags.push(`${dissolved.length} dissolved or insolvent company associations`);
+            const atDissolution = dissolved.filter(a => !a.resigned_on);
+            if (atDissolution.length) {
+                const names = atDissolution.map(a => a.appointed_to?.company_name || 'Unknown').join(', ');
+                flags.push(`Director at dissolution — never formally resigned from ${names}`);
+            }
+            if (resigned.length >= 3)
+                flags.push(`Resigned from ${resigned.length} companies`);
+            if (active.length >= 3) {
+                const names = active.slice(0, 3).map(a => a.appointed_to?.company_name || 'Unknown').join(', ');
+                flags.push(`Currently active in ${active.length} companies simultaneously — ${names}${active.length > 3 ? '...' : ''}`);
+            }
+            const dob = officer.date_of_birth;
+            return {
+                name: officer.title || query,
+                dob: dob ? `${dob.month}/${dob.year}` : null,
+                total_appointments: appointments.length,
+                appointments: appointments.map(a => ({
+                    company_name: a.appointed_to?.company_name || 'Unknown',
+                    company_number: a.appointed_to?.company_number || '',
+                    company_status: a.appointed_to?.company_status || 'unknown',
+                    role: a.officer_role || '',
+                    appointed_on: a.appointed_on || '',
+                    resigned_on: a.resigned_on || null,
+                })),
+                flags,
+            };
+        }));
+        const allFlags = profiles.flatMap(p => p.flags);
+        return {
+            source: 'ch_person_search',
+            status: profiles.length > 0 ? 'ok' : 'not_found',
+            total_results: json.total_results ?? 0,
+            note: profiles.length === 0 ? `No officer found matching "${query}" in Companies House` : undefined,
+            profiles,
+            flags: allFlags,
+        };
+    }
+    catch (err) {
+        return { source: 'ch_person_search', status: 'error', error: String(err) };
     }
 }
 // ──────────────────────────────────────────────────────────────────
@@ -1297,6 +1388,14 @@ router.post('/', investigateLimiter, async (req, res) => {
             }
             case 'email': {
                 const result = await analyseEmail(query);
+                sources = [result];
+                if (result && typeof result === 'object' && 'flags' in result) {
+                    allFlags.push(...result.flags);
+                }
+                break;
+            }
+            case 'person': {
+                const result = await lookupPersonByName(query);
                 sources = [result];
                 if (result && typeof result === 'object' && 'flags' in result) {
                     allFlags.push(...result.flags);
