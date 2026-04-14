@@ -6,8 +6,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 
-# Copy pre-compiled dist
+# Copy pre-compiled dist and static files
 COPY dist/ ./dist/
+COPY index.html ./
 
 EXPOSE 3000
 
