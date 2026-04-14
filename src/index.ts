@@ -13,6 +13,7 @@
 
 import express from 'express'
 import rateLimit from 'express-rate-limit'
+import path from 'path'
 import investigateRouter from './routes/investigate'
 
 const app  = express()
@@ -42,16 +43,7 @@ app.get('/health', (_req, res) => {
 })
 
 app.get('/', (_req, res) => {
-  res.json({
-    service: 'INVESTiGATOR',
-    description: 'Corporate Intelligence Acquisition — fraud investigation API',
-    endpoints: {
-      'POST /investigate': 'Intelligence lookup. Body: { type, query }',
-      'GET  /health':      'Service health check',
-    },
-    types: ['company', 'fca', 'domain', 'ip', 'postcode', 'phone', 'email'],
-    contact: 'axion-project@proton.me',
-  })
+  res.sendFile(path.resolve(__dirname, '..', 'index.html'))
 })
 
 // ── Start ────────────────────────────────────────────────────────────

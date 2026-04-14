@@ -17,6 +17,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const path_1 = __importDefault(require("path"));
 const investigate_1 = __importDefault(require("./routes/investigate"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT ?? 3000;
@@ -39,16 +40,7 @@ app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'investigator', ts: new Date().toISOString() });
 });
 app.get('/', (_req, res) => {
-    res.json({
-        service: 'INVESTiGATOR',
-        description: 'Corporate Intelligence Acquisition — fraud investigation API',
-        endpoints: {
-            'POST /investigate': 'Intelligence lookup. Body: { type, query }',
-            'GET  /health': 'Service health check',
-        },
-        types: ['company', 'fca', 'domain', 'ip', 'postcode', 'phone', 'email'],
-        contact: 'axion-project@proton.me',
-    });
+    res.sendFile(path_1.default.resolve(__dirname, '..', 'index.html'));
 });
 // ── Start ────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

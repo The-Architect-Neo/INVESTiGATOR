@@ -101,7 +101,11 @@
   <h2>Search</h2>
   <div class="tabs">
     <div class="tab active" onclick="setMode('company')">Company</div>
-    <div class="tab" onclick="setMode('person')">Person</div>
+    <div class="tab" onclick="setMode('domain')">Domain</div>
+    <div class="tab" onclick="setMode('ip')">IP</div>
+    <div class="tab" onclick="setMode('phone')">Phone</div>
+    <div class="tab" onclick="setMode('postcode')">Postcode</div>
+    <div class="tab" onclick="setMode('email')">Email</div>
   </div>
   <div class="input-row">
     <input type="text" id="query" placeholder="Company name or number..." onkeydown="if(event.key==='Enter') search()">
@@ -113,15 +117,22 @@
 <div class="results" id="results"></div>
 
 <script>
+  const PLACEHOLDERS = {
+    company:  'Company name or number (e.g. Barclays, 00048839)',
+    domain:   'Domain name (e.g. suspicious-site.co.uk)',
+    ip:       'IP address (e.g. 1.2.3.4)',
+    postcode: 'UK postcode (e.g. SW1A 1AA)',
+    phone:    'UK phone number (e.g. +447911123456)',
+    email:    'Email address (e.g. contact@example.com)',
+  };
+
   let mode = 'company';
 
   function setMode(m) {
     mode = m;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
-    document.getElementById('query').placeholder = m === 'company'
-      ? 'Company name or number...'
-      : 'Full name (e.g. Matthew John Durham)...';
+    document.getElementById('query').placeholder = PLACEHOLDERS[m] || 'Enter query...';
   }
 
   function clearResults() {
@@ -135,19 +146,182 @@
     const results = document.getElementById('results');
     results.innerHTML = '<p class="loading">Searching...</p>';
 
-    fetch(`/api/${mode}?q=${encodeURIComponent(q)}`)
+    fetch('/investigate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: mode, query: q }),
+    })
       .then(r => r.json())
       .then(data => {
         if (data.error) {
           results.innerHTML = `<div class="error-msg">${data.error}</div>`;
           return;
         }
-        if (mode === 'company') renderCompany(data);
-        else renderPerson(data);
+        renderResults(data);
       })
-      .catch(e => {
+      .catch(() => {
         results.innerHTML = `<div class="error-msg">Request failed. Is the server running?</div>`;
       });
+  }
+
+  function renderResults(data) {
+    const { risk_flags, flag_count, sources } = data;
+    let html = '';
+
+    if (flag_count > 0) {
+      html += `<div class="card" style="border-color:#f80">
+        <div class="card-header"><h3>⚠ ${flag_count} Risk Flag${flag_count > 1 ? 's' : ''} Detected</h3></div>
+        <div class="card-body">${risk_flags.map(f => `<div class="flag">⚠ ${f}</div>`).join('')}</div>
+      </div>`;
+    }
+
+    sources.forEach(src => {
+      html += renderSource(src);
+    });
+
+    document.getElementById('results').innerHTML = html || '<p class="loading">No results.</p>';
+  }
+
+  function renderSource(src) {
+    const statusColour = src.status === 'ok' ? '#6d6' : src.status === 'check_manually' ? '#fa0' : src.status === 'not_configured' ? '#888' : '#e55';
+    const title = src.source.replace(/_/g, ' ').toUpperCase();
+
+    let body = '';
+
+    if (src.status === 'check_manually') {
+      body = `<p style="color:#fa0;margin-bottom:8px">${src.note}</p>
+              <a href="${src.manual_check}" target="_blank" style="color:#c00">Check manually →</a>`;
+    } else if (src.status === 'not_configured') {
+      body = `<p style="color:#888">${src.note}</p>`;
+    } else if (src.status === 'error') {
+      body = `<p style="color:#e55">${src.error || 'Source unavailable'}</p>`;
+    } else {
+      body = renderSourceBody(src);
+    }
+
+    const flagsHtml = src.flags && src.flags.length
+      ? src.flags.map(f => `<div class="flag">⚠ ${f}</div>`).join('')
+      : '';
+
+    return `<div class="card">
+      <div class="card-header">
+        <h3>${title}</h3>
+        <span class="badge unknown" style="color:${statusColour};border-color:${statusColour}">${src.status}</span>
+      </div>
+      <div class="card-body">${flagsHtml}${body}</div>
+    </div>`;
+  }
+
+  function renderSourceBody(src) {
+    // Companies House
+    if (src.source === 'companies_house' && src.results) {
+      const rows = src.results.map(c => `<tr>
+        <td><a href="https://find-and-update.company-information.service.gov.uk/company/${c.company_number}" target="_blank">${c.name}</a></td>
+        <td>${c.company_number}</td>
+        <td class="${c.status === 'active' ? 'status-active' : 'status-dissolved'}">${c.status?.toUpperCase()}</td>
+        <td>${c.type}</td>
+        <td>${c.incorporated || ''}</td>
+      </tr>`).join('');
+      return `<p style="color:#aaa;font-size:.85em;margin-bottom:10px">${src.total_results} results</p>
+        <div class="table-wrap"><table>
+          <tr><th>Name</th><th>Number</th><th>Status</th><th>Type</th><th>Incorporated</th></tr>
+          ${rows}
+        </table></div>`;
+    }
+
+    // Company officers
+    if (src.source === 'company_officers' && src.data) {
+      const rows = src.data.map(o => `<tr>
+        <td>${o.name}</td>
+        <td>${o.role}</td>
+        <td>${o.appointed}</td>
+        <td>${o.resigned || 'Current'}</td>
+        <td>${o.nationality || ''}</td>
+      </tr>`).join('');
+      return `<div class="table-wrap"><table>
+        <tr><th>Name</th><th>Role</th><th>Appointed</th><th>Resigned</th><th>Nationality</th></tr>
+        ${rows}
+      </table></div>`;
+    }
+
+    // Filing history
+    if (src.source === 'ch_filing_history' && src.recent) {
+      const rows = src.recent.map(f => `<tr>
+        <td>${f.date}</td><td>${f.type}</td><td>${f.description}</td><td>${f.category}</td>
+      </tr>`).join('');
+      return `<p style="color:#aaa;font-size:.85em;margin-bottom:10px">${src.total_filings} total filings</p>
+        <div class="table-wrap"><table>
+          <tr><th>Date</th><th>Type</th><th>Description</th><th>Category</th></tr>
+          ${rows}
+        </table></div>`;
+    }
+
+    // RDAP/WHOIS domain
+    if (src.source === 'rdap_whois') {
+      return `<div class="meta-grid">
+        <div class="meta-item"><label>Domain</label><span>${src.domain}</span></div>
+        <div class="meta-item"><label>Registered</label><span>${src.dates?.registration?.slice(0,10) || 'N/A'}</span></div>
+        <div class="meta-item"><label>Expires</label><span>${src.dates?.expiration?.slice(0,10) || 'N/A'}</span></div>
+        <div class="meta-item"><label>Nameservers</label><span>${src.nameservers?.join(', ') || 'N/A'}</span></div>
+      </div>`;
+    }
+
+    // IPinfo
+    if (src.source === 'ipinfo') {
+      return `<div class="meta-grid">
+        <div class="meta-item"><label>IP</label><span>${src.ip}</span></div>
+        <div class="meta-item"><label>Location</label><span>${src.location?.city}, ${src.location?.region}, ${src.location?.country}</span></div>
+        <div class="meta-item"><label>Organisation</label><span>${src.org}</span></div>
+        <div class="meta-item"><label>Hostname</label><span>${src.hostname || 'N/A'}</span></div>
+      </div>`;
+    }
+
+    // RIPE RDAP
+    if (src.source === 'ripe_rdap') {
+      return `<div class="meta-grid">
+        <div class="meta-item"><label>Netblock</label><span>${src.netblock_name}</span></div>
+        <div class="meta-item"><label>Range</label><span>${src.range}</span></div>
+      </div>`;
+    }
+
+    // Postcode
+    if (src.source === 'postcodes_io') {
+      return `<div class="meta-grid">
+        <div class="meta-item"><label>Postcode</label><span>${src.postcode}</span></div>
+        <div class="meta-item"><label>District</label><span>${src.district}</span></div>
+        <div class="meta-item"><label>Country</label><span>${src.country}</span></div>
+        <div class="meta-item"><label>Constituency</label><span>${src.constituency}</span></div>
+        <div class="meta-item"><label>Coordinates</label><span>${src.location?.lat}, ${src.location?.lon}</span></div>
+      </div>`;
+    }
+
+    // Phone analysis
+    if (src.source === 'phone_analysis') {
+      return `<div class="meta-grid">
+        <div class="meta-item"><label>Number</label><span>${src.normalised}</span></div>
+        <div class="meta-item"><label>Type</label><span>${src.number_type}</span></div>
+        <div class="meta-item"><label>Carrier</label><span>${src.carrier_note}</span></div>
+      </div>`;
+    }
+
+    // URLscan
+    if (src.source === 'urlscan' && src.latest_scan) {
+      const s = src.latest_scan;
+      return `<div class="meta-grid">
+        <div class="meta-item"><label>Scan Count</label><span>${src.scan_count}</span></div>
+        <div class="meta-item"><label>Latest URL</label><span><a href="${s.result_page}" target="_blank" style="color:#ccc">View report →</a></span></div>
+        <div class="meta-item"><label>Verdict</label><span style="color:${s.verdict_malicious ? '#e55' : '#6d6'}">${s.verdict_malicious ? 'MALICIOUS' : 'Clean'}</span></div>
+        <div class="meta-item"><label>Score</label><span>${s.verdict_score}</span></div>
+      </div>`;
+    }
+
+    // Generic fallback — dump key fields
+    const skip = new Set(['source','status','flags','note','manual_check']);
+    const entries = Object.entries(src).filter(([k]) => !skip.has(k));
+    if (!entries.length) return '';
+    return `<div class="meta-grid">${entries.map(([k,v]) =>
+      `<div class="meta-item"><label>${k.replace(/_/g,' ')}</label><span>${typeof v === 'object' ? JSON.stringify(v) : String(v)}</span></div>`
+    ).join('')}</div>`;
   }
 
   function statusBadge(s) {
