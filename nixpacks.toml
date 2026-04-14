@@ -1,7 +1,7 @@
 providers = ["node"]
 
 [phases.build]
-cmds = ["npm install --include=dev", "npx tsc"]
+cmds = ["npm install --omit=dev"]
 
 [start]
 cmd = "node dist/index.js"
