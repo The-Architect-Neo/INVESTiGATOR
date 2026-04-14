@@ -14,7 +14,10 @@
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import path from 'path'
+import dotenv from 'dotenv'
 import investigateRouter from './routes/investigate'
+
+dotenv.config()
 
 const app  = express()
 const PORT = process.env.PORT ?? 3000
