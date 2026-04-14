@@ -18,6 +18,9 @@ import investigateRouter from './routes/investigate'
 const app  = express()
 const PORT = process.env.PORT ?? 3000
 
+// Trust Railway's reverse proxy — required for rate limiting to use real client IP
+app.set('trust proxy', 1)
+
 // ── Middleware ───────────────────────────────────────────────────────
 app.use(express.json({ limit: '50kb' }))
 

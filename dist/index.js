@@ -20,6 +20,8 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const investigate_1 = __importDefault(require("./routes/investigate"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT ?? 3000;
+// Trust Railway's reverse proxy — required for rate limiting to use real client IP
+app.set('trust proxy', 1);
 // ── Middleware ───────────────────────────────────────────────────────
 app.use(express_1.default.json({ limit: '50kb' }));
 // Global rate limit — 100 requests per 15 minutes per IP
