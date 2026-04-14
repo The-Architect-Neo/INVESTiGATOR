@@ -1,1 +1,1 @@
-web: npm run build && node dist/index.js
+web: npm install --omit=dev && node dist/index.js
