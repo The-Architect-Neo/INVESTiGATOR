@@ -125,47 +125,54 @@
 </header>
 
 <div class="search-bar">
-  <div class="tabs">
-    <div class="tab active" onclick="setMode('company',this)">Company</div>
-    <div class="tab" onclick="setMode('domain',this)">Domain</div>
-    <div class="tab" onclick="setMode('ip',this)">IP Address</div>
-    <div class="tab" onclick="setMode('phone',this)">Phone</div>
-    <div class="tab" onclick="setMode('postcode',this)">Postcode</div>
-    <div class="tab" onclick="setMode('email',this)">Email</div>
+  <div style="font-size:.75em;color:#555;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">
+    Enter one value or multiple comma-separated — type is auto-detected. Use tabs to force a specific type.
   </div>
-  <div class="input-row">
-    <input type="text" id="query" placeholder="Company name or registration number..." onkeydown="if(event.key==='Enter')search()">
+  <div class="input-row" style="margin-bottom:12px">
+    <input type="text" id="query" placeholder="e.g.  Wirecard,  wirecard.com,  185.220.101.1,  SW1A 1AA" onkeydown="if(event.key==='Enter')search()">
     <button onclick="search()">Investigate</button>
     <button class="secondary" onclick="clearResults()">Clear</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="font-size:.72em;color:#444;letter-spacing:1px;text-transform:uppercase">Force type:</span>
+    <div class="tabs" style="margin-bottom:0">
+      <div class="tab" onclick="setMode('company',this)">Company</div>
+      <div class="tab" onclick="setMode('domain',this)">Domain</div>
+      <div class="tab" onclick="setMode('ip',this)">IP</div>
+      <div class="tab" onclick="setMode('phone',this)">Phone</div>
+      <div class="tab" onclick="setMode('postcode',this)">Postcode</div>
+      <div class="tab" onclick="setMode('email',this)">Email</div>
+      <div class="tab active" onclick="setMode('auto',this)">Auto</div>
+    </div>
   </div>
 </div>
 
 <div class="results" id="results"></div>
 
 <script>
-const PLACEHOLDERS = {
-  company:  'Company name or registration number (e.g. Barclays, 00048839)',
-  domain:   'Domain name (e.g. suspicious-broker.co.uk)',
-  ip:       'IP address (e.g. 185.220.101.1)',
-  phone:    'UK phone number (e.g. +447911123456)',
-  postcode: 'UK postcode (e.g. SW1A 1AA)',
-  email:    'Email address (e.g. contact@example.com)',
-};
-
-let mode = 'company';
+let mode = 'auto';
 
 function setMode(m, el) {
   mode = m;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('query').placeholder = PLACEHOLDERS[m] || '';
+}
+
+function detectType(val) {
+  const v = val.trim();
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v))          return 'ip';
+  if (/^[a-f0-9:]{5,39}$/i.test(v) && v.includes(':'))          return 'ip';
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))                     return 'email';
+  if (/^(\+44|07)\d{9,10}$/.test(v.replace(/\s/g,'')))          return 'phone';
+  if (/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i.test(v))          return 'postcode';
+  if (/^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/i.test(v) && !v.includes(' ')) return 'domain';
+  if (/^\d{7,8}$/.test(v) || /^[A-Z]{2}\d{6}$/i.test(v))       return 'company';
+  return 'company';
 }
 
 function pivotSearch(type, query) {
   mode = type;
-  document.querySelectorAll('.tab').forEach(t => {
-    t.classList.toggle('active', t.textContent.toLowerCase().includes(type));
-  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('query').value = query;
   search();
 }
@@ -176,22 +183,84 @@ function clearResults() {
 }
 
 function search() {
-  const q = document.getElementById('query').value.trim();
-  if (!q) return;
+  const raw = document.getElementById('query').value.trim();
+  if (!raw) return;
+
+  const terms = raw.split(',').map(s => s.trim()).filter(Boolean);
+  const lookups = terms.map(term => ({
+    query: term,
+    type: mode === 'auto' ? detectType(term) : mode,
+  }));
+
   document.getElementById('results').innerHTML = '<p class="loading">Running intelligence checks...</p>';
-  fetch('/investigate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: mode, query: q }),
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { document.getElementById('results').innerHTML = `<div class="error-msg">${data.error}</div>`; return; }
-    render(data);
-  })
-  .catch(() => {
-    document.getElementById('results').innerHTML = '<div class="error-msg">Request failed.</div>';
+
+  Promise.all(lookups.map(l =>
+    fetch('/investigate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: l.type, query: l.query }),
+    }).then(r => r.json()).catch(() => ({ error: 'Request failed', query: l.query, type: l.type }))
+  )).then(results => {
+    if (results.length === 1) {
+      if (results[0].error) { document.getElementById('results').innerHTML = `<div class="error-msg">${results[0].error}</div>`; return; }
+      render(results[0]);
+    } else {
+      renderMulti(results, lookups);
+    }
   });
+}
+
+// ── Multi-result render ─────────────────────────────────────────────
+function renderMulti(results, lookups) {
+  let html = '';
+
+  // Aggregate risk score across all lookups
+  const totalFlags = results.flatMap(r => r.risk_flags || []);
+  const maxScore   = Math.max(...results.map(r => scoreRisk(r)));
+  const cls        = verdictClass(maxScore, totalFlags);
+
+  html += `<div class="verdict ${cls}">
+    <div class="verdict-score">${maxScore}</div>
+    <div class="verdict-text">
+      <h2>${verdictLabel(cls)} — ${lookups.length} subjects investigated</h2>
+      <p>${lookups.map((l,i) => `<span style="color:#888">${l.type.toUpperCase()}:</span> ${l.query}`).join(' &nbsp;·&nbsp; ')}</p>
+      ${totalFlags.length ? `<p style="margin-top:6px;color:#f80">${totalFlags.length} risk flag${totalFlags.length>1?'s':''} across all subjects</p>` : ''}
+    </div>
+  </div>`;
+
+  if (totalFlags.length) {
+    html += `<div class="flags-panel">
+      <div class="flags-panel-header"><h3>⚠ Combined Risk Flags (${totalFlags.length})</h3></div>
+      ${totalFlags.map(f => `<div class="flag-item">${f}</div>`).join('')}
+    </div>`;
+  }
+
+  results.forEach((data, i) => {
+    const l = lookups[i];
+    const s = scoreRisk(data);
+    const c = verdictClass(s, data.risk_flags||[]);
+    const colour = {high:'#e55',medium:'#f80',low:'#cc6',clean:'#4d4'}[c];
+    html += `<div style="border-left:3px solid ${colour};margin-bottom:30px;padding-left:16px">
+      <p style="font-size:.75em;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+        ${l.type.toUpperCase()} — ${l.query} &nbsp;<span style="color:${colour}">${verdictLabel(c)}</span>
+      </p>
+      ${renderSourceList(data)}
+    </div>`;
+  });
+
+  document.getElementById('results').innerHTML = html;
+}
+
+function renderSourceList(data) {
+  const sources = data.sources || [];
+  const priority  = sources.filter(s => s.status === 'ok' || s.status === 'check_manually' || s.status === 'not_found');
+  const secondary = sources.filter(s => s.status === 'not_configured');
+  let html = '';
+  priority.forEach(s => { html += renderCard(s, data.query); });
+  if (secondary.length) {
+    html += `<p class="section-label">Not configured: ${secondary.map(s=>s.source.replace(/_/g,' ')).join(', ')}</p>`;
+  }
+  return html;
 }
 
 // ── Risk scoring ────────────────────────────────────────────────────
@@ -272,17 +341,7 @@ function render(data) {
     </div>`;
   }
 
-  // Sources — filtered and ordered
-  const priority  = sources.filter(s => s.status === 'ok' || s.status === 'check_manually' || (s.status === 'not_found' && s.source !== 'charity_commission'));
-  const secondary = sources.filter(s => s.status === 'not_configured');
-
-  priority.forEach(s  => { html += renderCard(s, data.query); });
-
-  if (secondary.length) {
-    html += `<p class="section-label">Additional sources — API keys not configured</p>`;
-    secondary.forEach(s => { html += renderCard(s, data.query, true); });
-  }
-
+  html += renderSourceList(data);
   document.getElementById('results').innerHTML = html;
 }
 
