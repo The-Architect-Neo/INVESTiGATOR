@@ -4,26 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>INVEST👁GATOR</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; }
+  body { font-family: 'JetBrains Mono', 'Consolas', monospace; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; }
 
   header { background: #111; border-bottom: 1px solid #222; padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; }
   header h1 { font-size: 1.2em; color: #fff; letter-spacing: 3px; text-transform: uppercase; }
   header span { color: #555; font-size: 0.75em; letter-spacing: 1px; }
 
-  .search-bar { background: #111; padding: 30px 40px; border-bottom: 1px solid #1e1e1e; }
-  .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-  .tab { padding: 7px 18px; background: #161616; border: 1px solid #333; color: #888; cursor: pointer; font-size: 0.8em; letter-spacing: 1px; text-transform: uppercase; transition: all .15s; }
-  .tab:hover { border-color: #666; color: #ccc; }
-  .tab.active { background: #c00; border-color: #c00; color: #fff; }
-  .input-row { display: flex; gap: 8px; }
-  .input-row input { flex: 1; padding: 12px 16px; background: #161616; border: 1px solid #333; color: #fff; font-size: 1em; outline: none; }
-  .input-row input:focus { border-color: #c00; }
-  .input-row button { padding: 12px 28px; background: #c00; border: none; color: #fff; font-size: 0.85em; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
-  .input-row button:hover { background: #a00; }
-  .input-row button.secondary { background: #161616; border: 1px solid #333; color: #888; }
-  .input-row button.secondary:hover { color: #fff; border-color: #666; }
+  /* ── SEARCH BAR ── */
+  .search-bar { background: #111; padding: 24px 40px 18px; border-bottom: 1px solid #1e1e1e; }
+
+  .search-input-wrap { display: flex; align-items: stretch; background: #161616; border: 1px solid #2a2a2a; margin-bottom: 12px; transition: border-color .15s; }
+  .search-input-wrap:focus-within { border-color: #c00; }
+  .search-input-wrap input { flex: 1; padding: 13px 16px; background: transparent; border: none; color: #fff; font-size: 0.92em; font-family: inherit; outline: none; min-width: 0; }
+  .search-input-wrap input::placeholder { color: #333; }
+  .detected-type { font-size: 0.65em; color: #333; letter-spacing: 1px; text-transform: uppercase; padding: 0 14px; display: flex; align-items: center; white-space: nowrap; border-left: 1px solid #1e1e1e; transition: color .2s; }
+  .detected-type.lit { color: #c00; }
+  .search-btn { padding: 0 24px; background: #c00; border: none; border-left: 1px solid #a00; color: #fff; font-size: 0.75em; font-family: inherit; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; transition: background .15s; white-space: nowrap; }
+  .search-btn:hover { background: #a00; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; flex-wrap: wrap; }
+  .tab { padding: 6px 14px; background: transparent; border: 1px solid #1e1e1e; border-right: none; color: #3a3a3a; cursor: pointer; font-size: 0.68em; font-family: inherit; letter-spacing: 1px; text-transform: uppercase; transition: all .15s; user-select: none; }
+  .tab:last-child { border-right: 1px solid #1e1e1e; }
+  .tab:hover { color: #777; border-color: #333; background: #141414; }
+  .tab.active { background: #1a0000; border-color: #600; color: #c00; }
+  .tab.tab-more { color: #2a2a2a; border-right: 1px solid #1e1e1e; margin-left: 6px; }
+  .tab.tab-more:hover { color: #555; }
+  .tabs-extra { display: none; flex-wrap: wrap; margin-top: 6px; }
+  .tabs-extra.open { display: flex; }
+
+  /* ── HISTORY ── */
+  .history-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; min-height: 20px; }
+  .history-label { font-size: 0.62em; color: #2a2a2a; text-transform: uppercase; letter-spacing: 1px; }
+  .history-chip { font-size: 0.65em; padding: 3px 9px; background: #111; border: 1px solid #1e1e1e; color: #3a3a3a; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .history-chip:hover { border-color: #444; color: #888; }
+  .history-clear { font-size: 0.6em; color: #1e1e1e; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; margin-left: 2px; }
+  .history-clear:hover { color: #555; }
 
   .results { padding: 30px 40px; max-width: 1100px; }
 
@@ -111,7 +130,8 @@
 
   @media (max-width: 600px) {
     header, .search-bar, .results { padding-left: 20px; padding-right: 20px; }
-    .input-row { flex-direction: column; }
+    .search-input-wrap { flex-wrap: wrap; }
+    .search-btn { width: 100%; border-left: none; border-top: 1px solid #a00; padding: 12px; }
     .verdict { flex-direction: column; gap: 10px; }
     .meta-grid { grid-template-columns: 1fr 1fr; }
   }
@@ -125,27 +145,29 @@
 </header>
 
 <div class="search-bar">
-  <div style="font-size:.75em;color:#555;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">
-    Enter one value or multiple comma-separated — type is auto-detected. Use tabs to force a specific type.
+  <div class="search-input-wrap">
+    <input type="text" id="query" placeholder="Company, person, domain, IP, email — comma-separate for multi-target" autocomplete="off" spellcheck="false"
+      onkeydown="if(event.key==='Enter')search()"
+      oninput="onQueryInput(this.value)">
+    <div class="detected-type" id="detectedType"></div>
+    <button class="search-btn" onclick="search()">Investigate</button>
   </div>
-  <div class="input-row" style="margin-bottom:12px">
-    <input type="text" id="query" placeholder="e.g.  Wirecard,  John Smith,  wirecard.com,  185.220.101.1,  SW1A 1AA" onkeydown="if(event.key==='Enter')search()">
-    <button onclick="search()">Investigate</button>
-    <button class="secondary" onclick="clearResults()">Clear</button>
-  </div>
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <span style="font-size:.72em;color:#444;letter-spacing:1px;text-transform:uppercase">Force type:</span>
-    <div class="tabs" style="margin-bottom:0">
-      <div class="tab" onclick="setMode('company',this)">Company</div>
-      <div class="tab" onclick="setMode('person',this)">Person</div>
-      <div class="tab" onclick="setMode('domain',this)">Domain</div>
-      <div class="tab" onclick="setMode('ip',this)">IP</div>
-      <div class="tab" onclick="setMode('phone',this)">Phone</div>
-      <div class="tab" onclick="setMode('postcode',this)">Postcode</div>
-      <div class="tab" onclick="setMode('email',this)">Email</div>
-      <div class="tab active" onclick="setMode('auto',this)">Auto</div>
+  <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
+    <div class="tabs" id="primaryTabs">
+      <div class="tab active" data-mode="auto"    onclick="setMode('auto',this)">Auto</div>
+      <div class="tab"        data-mode="company" onclick="setMode('company',this)">Company</div>
+      <div class="tab"        data-mode="person"  onclick="setMode('person',this)">Person</div>
+      <div class="tab"        data-mode="domain"  onclick="setMode('domain',this)">Domain</div>
+      <div class="tab"        data-mode="ip"      onclick="setMode('ip',this)">IP</div>
+      <div class="tab"        data-mode="email"   onclick="setMode('email',this)">Email</div>
+      <div class="tab tab-more" onclick="toggleMoreTabs(this)">More ▾</div>
+    </div>
+    <div class="tabs-extra" id="tabsExtra">
+      <div class="tab" data-mode="phone"    onclick="setMode('phone',this)">Phone</div>
+      <div class="tab" data-mode="postcode" onclick="setMode('postcode',this)">Postcode</div>
     </div>
   </div>
+  <div class="history-row" id="historyRow"></div>
 </div>
 
 <div class="results" id="results"></div>
@@ -153,10 +175,78 @@
 <script>
 let mode = 'auto';
 
+// ── SEARCH HISTORY ──────────────────────────────────────────────────
+const HISTORY_KEY = 'inv_history';
+const HISTORY_MAX = 8;
+
+function historyLoad() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function historySave(q) {
+  let h = historyLoad().filter(x => x !== q);
+  h.unshift(q);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, HISTORY_MAX)));
+  renderHistory();
+}
+function historyClear() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+function renderHistory() {
+  const row = document.getElementById('historyRow');
+  if (!row) return;
+  const h = historyLoad();
+  if (!h.length) { row.innerHTML = ''; return; }
+  row.innerHTML = `<span class="history-label">Recent</span>`
+    + h.map(q => `<span class="history-chip" onclick="recallHistory(${JSON.stringify(q)})">${q}</span>`).join('')
+    + `<span class="history-clear" onclick="historyClear()">clear</span>`;
+}
+function recallHistory(q) {
+  document.getElementById('query').value = q;
+  onQueryInput(q);
+  search();
+}
+
+// ── LIVE TYPE DETECTION DISPLAY ─────────────────────────────────────
+function onQueryInput(val) {
+  const el = document.getElementById('detectedType');
+  if (!el) return;
+  const terms = val.split(',').map(s => s.trim()).filter(Boolean);
+  if (mode !== 'auto') {
+    el.textContent = mode.toUpperCase();
+    el.className = 'detected-type lit';
+    return;
+  }
+  if (!terms.length) { el.textContent = ''; el.className = 'detected-type'; return; }
+  if (terms.length > 1) {
+    el.textContent = `${terms.length} TARGETS`;
+    el.className = 'detected-type lit';
+    return;
+  }
+  el.textContent = detectType(terms[0]).toUpperCase();
+  el.className = 'detected-type lit';
+}
+
+// ── MORE TABS TOGGLE ────────────────────────────────────────────────
+function toggleMoreTabs(btn) {
+  const extra = document.getElementById('tabsExtra');
+  const open = extra.classList.toggle('open');
+  btn.textContent = open ? 'Less ▴' : 'More ▾';
+}
+
+// ── KEYBOARD SHORTCUTS ──────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const input = document.getElementById('query');
+  if (e.key === '/' && document.activeElement !== input) { e.preventDefault(); input.focus(); }
+  if (e.key === 'Escape' && document.activeElement === input) { input.blur(); }
+});
+
+// ── MODE / TABS ──────────────────────────────────────────────────────
 function setMode(m, el) {
   mode = m;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+  onQueryInput(document.getElementById('query').value);
 }
 
 function detectType(val) {
@@ -183,11 +273,13 @@ function pivotSearch(type, query) {
 function clearResults() {
   document.getElementById('results').innerHTML = '';
   document.getElementById('query').value = '';
+  onQueryInput('');
 }
 
 function search() {
   const raw = document.getElementById('query').value.trim();
   if (!raw) return;
+  historySave(raw);
 
   const terms = raw.split(',').map(s => s.trim()).filter(Boolean);
   const lookups = terms.map(term => ({
@@ -580,6 +672,9 @@ function renderSourceBody(src, query) {
     `<div class="meta-item"><label>${k.replace(/_/g,' ')}</label><span>${typeof v === 'object' ? JSON.stringify(v) : String(v)}</span></div>`
   ).join('')}</div>`;
 }
+
+// ── INIT ─────────────────────────────────────────────────────────────
+renderHistory();
 </script>
 </body>
 </html>
