@@ -24,6 +24,8 @@
   .detected-type.lit { color: #c00; }
   .search-btn { padding: 0 24px; background: #c00; border: none; border-left: 1px solid #a00; color: #fff; font-size: 0.75em; font-family: inherit; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; transition: background .15s; white-space: nowrap; }
   .search-btn:hover { background: #a00; }
+  .clear-btn { padding: 0 16px; background: #1a1a1a; border: none; border-left: 1px solid #2a2a2a; color: #666; font-size: 0.75em; font-family: inherit; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; transition: all .15s; white-space: nowrap; }
+  .clear-btn:hover { background: #2a2a2a; color: #aaa; }
 
   /* ── TABS ── */
   .tabs { display: flex; flex-wrap: wrap; }
@@ -37,12 +39,12 @@
   .tabs-extra.open { display: flex; }
 
   /* ── HISTORY ── */
-  .history-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; min-height: 20px; }
-  .history-label { font-size: 0.62em; color: #2a2a2a; text-transform: uppercase; letter-spacing: 1px; }
-  .history-chip { font-size: 0.65em; padding: 3px 9px; background: #111; border: 1px solid #1e1e1e; color: #3a3a3a; cursor: pointer; font-family: inherit; transition: all .15s; }
-  .history-chip:hover { border-color: #444; color: #888; }
-  .history-clear { font-size: 0.6em; color: #1e1e1e; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; margin-left: 2px; }
-  .history-clear:hover { color: #555; }
+  .history-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; min-height: 20px; }
+  .history-label { font-size: 0.62em; color: #444; text-transform: uppercase; letter-spacing: 1px; }
+  .history-chip { font-size: 0.65em; padding: 3px 9px; background: #111; border: 1px solid #222; color: #555; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .history-chip:hover { border-color: #555; color: #aaa; }
+  .history-clear { font-size: 0.6em; color: #444; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; margin-left: 2px; border: 1px solid #2a2a2a; padding: 2px 7px; transition: all .15s; }
+  .history-clear:hover { color: #aaa; border-color: #555; }
 
   .results { padding: 30px 40px; max-width: 1100px; }
 
@@ -166,6 +168,8 @@
   body.light-mode .detected-type.lit { color: #bb0000; }
   body.light-mode .search-btn { background: #bb0000; border-left-color: #880000; color: #ffffff; }
   body.light-mode .search-btn:hover { background: #880000; }
+  body.light-mode .clear-btn { background: #eeece9; border-left-color: #cccccc; color: #555555; }
+  body.light-mode .clear-btn:hover { background: #dddddd; color: #111111; }
 
   body.light-mode .tab { border-color: #bbbbbb; color: #555555; background: #ffffff; }
   body.light-mode .tab:last-child { border-right: 1px solid #bbbbbb; }
@@ -177,8 +181,8 @@
   body.light-mode .history-label { color: #888888; }
   body.light-mode .history-chip { background: #ffffff; border-color: #bbbbbb; color: #444444; }
   body.light-mode .history-chip:hover { border-color: #555555; color: #111111; }
-  body.light-mode .history-clear { color: #bbbbbb; }
-  body.light-mode .history-clear:hover { color: #555555; }
+  body.light-mode .history-clear { color: #888888; border-color: #cccccc; }
+  body.light-mode .history-clear:hover { color: #111111; border-color: #888888; }
 
   body.light-mode .verdict.high   { background: #fff0f0; border-color: #cc0000; }
   body.light-mode .verdict.medium { background: #fff8ee; border-color: #cc6600; }
@@ -260,6 +264,7 @@
       oninput="onQueryInput(this.value)">
     <div class="detected-type" id="detectedType"></div>
     <button class="search-btn" onclick="search()">Investigate</button>
+    <button class="clear-btn" onclick="clearAll()">✕ Clear</button>
   </div>
   <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0">
     <div class="tabs" id="primaryTabs">
@@ -383,6 +388,17 @@ function clearResults() {
   document.getElementById('results').innerHTML = '';
   document.getElementById('query').value = '';
   onQueryInput('');
+}
+
+function clearAll() {
+  // Wipes: results panel, search input, type detector, history chips
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('query').value = '';
+  document.getElementById('detectedType').textContent = '';
+  document.getElementById('detectedType').className = 'detected-type';
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+  document.getElementById('query').focus();
 }
 
 function search() {
