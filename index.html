@@ -135,13 +135,122 @@
     .verdict { flex-direction: column; gap: 10px; }
     .meta-grid { grid-template-columns: 1fr 1fr; }
   }
+
+  /* ── THEME TOGGLE BUTTON ── */
+  .theme-toggle {
+    background: none; border: 1px solid #333; color: #777;
+    font-size: 1.1em; width: 36px; height: 36px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s; flex-shrink: 0; font-family: inherit;
+    border-radius: 2px;
+  }
+  .theme-toggle:hover { border-color: #c00; color: #fff; background: #c00; }
+
+  /* ═══════════════════════════════════════════════════════
+     LIGHT MODE — WCAG AA high contrast for accessibility
+     ═══════════════════════════════════════════════════════ */
+  body.light-mode { background: #f5f4f1; color: #111111; }
+
+  body.light-mode header { background: #ffffff; border-bottom: 2px solid #bbbbbb; }
+  body.light-mode header h1 { color: #111111; }
+  body.light-mode header span { color: #555555; }
+  body.light-mode .theme-toggle { border-color: #aaaaaa; color: #444444; }
+  body.light-mode .theme-toggle:hover { border-color: #bb0000; color: #bb0000; background: #fff0f0; }
+
+  body.light-mode .search-bar { background: #eeece9; border-bottom: 2px solid #bbbbbb; }
+  body.light-mode .search-input-wrap { background: #ffffff; border: 2px solid #999999; }
+  body.light-mode .search-input-wrap:focus-within { border-color: #bb0000; }
+  body.light-mode .search-input-wrap input { color: #111111; font-size: 1em; }
+  body.light-mode .search-input-wrap input::placeholder { color: #888888; }
+  body.light-mode .detected-type { color: #888888; border-left: 1px solid #cccccc; }
+  body.light-mode .detected-type.lit { color: #bb0000; }
+  body.light-mode .search-btn { background: #bb0000; border-left-color: #880000; color: #ffffff; }
+  body.light-mode .search-btn:hover { background: #880000; }
+
+  body.light-mode .tab { border-color: #bbbbbb; color: #555555; background: #ffffff; }
+  body.light-mode .tab:last-child { border-right: 1px solid #bbbbbb; }
+  body.light-mode .tab:hover { color: #111111; border-color: #777777; background: #eeeeee; }
+  body.light-mode .tab.active { background: #fff0f0; border-color: #bb0000; color: #bb0000; }
+  body.light-mode .tab.tab-more { color: #888888; border-right: 1px solid #bbbbbb; }
+  body.light-mode .tab.tab-more:hover { color: #444444; background: #eeeeee; }
+
+  body.light-mode .history-label { color: #888888; }
+  body.light-mode .history-chip { background: #ffffff; border-color: #bbbbbb; color: #444444; }
+  body.light-mode .history-chip:hover { border-color: #555555; color: #111111; }
+  body.light-mode .history-clear { color: #bbbbbb; }
+  body.light-mode .history-clear:hover { color: #555555; }
+
+  body.light-mode .verdict.high   { background: #fff0f0; border-color: #cc0000; }
+  body.light-mode .verdict.medium { background: #fff8ee; border-color: #cc6600; }
+  body.light-mode .verdict.low    { background: #f4fff4; border-color: #227722; }
+  body.light-mode .verdict.clean  { background: #f0fff8; border-color: #1a8855; }
+  body.light-mode .verdict.high   .verdict-score { color: #bb0000; }
+  body.light-mode .verdict.medium .verdict-score { color: #994400; }
+  body.light-mode .verdict.low    .verdict-score { color: #336633; }
+  body.light-mode .verdict.clean  .verdict-score { color: #1a7755; }
+  body.light-mode .verdict-text p { color: #333333; }
+  body.light-mode .verdict.high   .verdict-text h2 { color: #bb0000; }
+  body.light-mode .verdict.medium .verdict-text h2 { color: #994400; }
+  body.light-mode .verdict.low    .verdict-text h2 { color: #336633; }
+  body.light-mode .verdict.clean  .verdict-text h2 { color: #1a7755; }
+
+  body.light-mode .flags-panel { background: #fff8ee; border: 2px solid #cc8800; }
+  body.light-mode .flags-panel-header { background: #fff0dd; }
+  body.light-mode .flags-panel-header h3 { color: #884400; }
+  body.light-mode .flag-item { border-bottom: 1px solid #ddbb88; color: #884400; }
+
+  body.light-mode .card { background: #ffffff; border: 1px solid #cccccc; }
+  body.light-mode .card-header { background: #eeece9; }
+  body.light-mode .card-header:hover { background: #e4e2de; }
+  body.light-mode .card-header h3 { color: #111111; }
+  body.light-mode .card-header .toggle { color: #555555; }
+  body.light-mode .card-body { background: #ffffff; }
+
+  body.light-mode .pill-ok      { background: #e8f5e8; color: #1a6a1a; border: 1px solid #77aa77; }
+  body.light-mode .pill-warn    { background: #fff0dd; color: #884400; border: 1px solid #cc8800; }
+  body.light-mode .pill-manual  { background: #fffaee; color: #665500; border: 1px solid #aaaa00; }
+  body.light-mode .pill-missing { background: #f0f0f0; color: #555555; border: 1px solid #bbbbbb; }
+  body.light-mode .pill-error   { background: #fff0f0; color: #aa0000; border: 1px solid #cc8888; }
+
+  body.light-mode .meta-item label { color: #555555; }
+  body.light-mode .meta-item span  { color: #111111; }
+  body.light-mode .meta-item span.highlight { color: #bb0000; }
+
+  body.light-mode th { background: #eeece9; color: #333333; border-bottom: 2px solid #bbbbbb; }
+  body.light-mode td { color: #111111; border-bottom: 1px solid #dddddd; }
+  body.light-mode tr:hover td { background: #f5f3f0; }
+  body.light-mode .status-active     { color: #1a6a1a; font-weight: 600; }
+  body.light-mode .status-dissolved  { color: #bb0000; font-weight: 600; }
+  body.light-mode .status-liquidation { color: #884400; font-weight: 600; }
+
+  body.light-mode .pivot { color: #0055cc; }
+  body.light-mode .pivot:hover { color: #003399; }
+
+  body.light-mode .timeline::before { background: #bbbbbb; }
+  body.light-mode .tl-item::before { background: #dddddd; border: 1px solid #999999; }
+  body.light-mode .tl-item.warn::before { background: #fff0dd; border-color: #cc8800; }
+  body.light-mode .tl-item.bad::before  { background: #fff0f0; border-color: #cc0000; }
+  body.light-mode .tl-date  { color: #666666; }
+  body.light-mode .tl-label { color: #111111; }
+  body.light-mode .tl-item.warn .tl-label { color: #884400; }
+  body.light-mode .tl-item.bad  .tl-label { color: #bb0000; }
+
+  body.light-mode .manual-cta { background: #fffaee; border: 1px solid #aaaa00; color: #554400; }
+  body.light-mode .manual-cta:hover { background: #fff0dd; color: #884400; border-color: #cc8800; }
+
+  body.light-mode .section-label { color: #666666; border-bottom: 1px solid #cccccc; }
+  body.light-mode .loading { color: #555555; }
+  body.light-mode .error-msg { color: #aa0000; background: #fff0f0; border: 1px solid #cc8888; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>INVEST👁GATOR</h1>
-  <span>Corporate Intelligence Acquisition</span>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span>Corporate Intelligence Acquisition</span>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark mode" aria-label="Toggle light or dark mode">☀</button>
+  </div>
 </header>
 
 <div class="search-bar">
@@ -673,8 +782,22 @@ function renderSourceBody(src, query) {
   ).join('')}</div>`;
 }
 
+// ── THEME ────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const light = document.body.classList.toggle('light-mode');
+  document.getElementById('themeToggle').textContent = light ? '◑' : '☀';
+  localStorage.setItem('inv_theme', light ? 'light' : 'dark');
+}
+
 // ── INIT ─────────────────────────────────────────────────────────────
 renderHistory();
+(function() {
+  if (localStorage.getItem('inv_theme') === 'light') {
+    document.body.classList.add('light-mode');
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = '◑';
+  }
+})();
 </script>
 </body>
 </html>
